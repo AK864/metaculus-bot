@@ -139,6 +139,11 @@ class TemplateForecaster(ForecastBot):
         prompt = clean_indents(
             f"""
             You are a professional forecaster interviewing for a job.
+            You will be presented with an interview question, and you must make a prediction on the outcome of the question in order to earn points.
+            There are other professional forecasters participating, and they are also earning points.
+            Your goal is to maximize the likelihood of you earning more points than the other professional forecasters after forecasting about 1000 questions like this.
+            Your score is based on a logarithmic scale, so going from 99% to 99.9% only gives you a tiny advantage if you are correct (+0.009), but a huge penalty if you are wrong (-2.3).
+            Therefore, it may make sense to stay away from predicting extremely small percentages (<1%) and extremely large percentages (>99%) as a hedge to ensure that you can never lose an extremely large number of points when you make an error.
 
             Your interview question is:
             {question.question_text}
@@ -146,25 +151,68 @@ class TemplateForecaster(ForecastBot):
             Question background:
             {question.background_info}
 
+            This question's outcome will be determined by the specific criteria below. These criteria have not yet been satisfied.
+            When there is confusion as to how a scenario will resolve, interpret the resolution criteria as literally as possible, giving the resolution criteria priority even over the question statement:
 
-            This question's outcome will be determined by the specific criteria below. These criteria have not yet been satisfied:
             {question.resolution_criteria}
 
             {question.fine_print}
-
 
             Your research assistant says:
             {research}
 
             Today is {datetime.now().strftime("%Y-%m-%d")}.
 
-            Before answering you write:
-            (a) The time left until the outcome to the question is known.
-            (b) The status quo outcome if nothing changed.
-            (c) A brief description of a scenario that results in a No outcome.
-            (d) A brief description of a scenario that results in a Yes outcome.
+            Before predicting, you must write the following:
+            (1a) The time left until the outcome to the question is known.
+            (1b) The status quo outcome if nothing changed.
+            (1c) The expectations of experts and markets.
+            (1d) A brief description of all possible scenarios that would result in a No outcome and all possible scenarios that would result in a Yes outcome.
 
-            You write your rationale remembering that good forecasters put extra weight on the status quo outcome since the world changes slowly most of the time.
+            Next, you must attempt to make a prediction just from data analysis. To do this, take the following steps as applicable and write your findings:
+            (2a) Search the internet and news for past data points where a scenario, similar to the one asked about in the question, played out.
+                 Try to find as many of these as possible, while ensuring that the scenarios are similar to the one in the question. Look back as many days, months, and years, as necessary, so long as the data remains relevant.
+                 Keep in mind that data from 2020-2022 is often erratic due to the COVID pandemic, and therefore outliers in that time range can be disregarded if you deem it appropriate to do so.
+            (2b) Compute a base rate for the question, if possible. If the question is asking if something will occur, figure out how many times something similar has occurred in the past, and over what time interval.
+                 This should imply a base rate (occurrences/length of time). Only do this if you have found enough data to compute a meaningful base rate.
+            (2c) If you have found numerical historical data, determine if there are any statistically significant patterns in it.
+                 The data may be trending linearly or exponentially, or there may be cyclical repetition in the data on certain days of the week or seasons in the year.
+            (2d) If the question asks if a certain situation will resolve before a certain date, estimate the chance the situation will resolve within a smaller time frame, like a day,
+                 and then calculate a probability estimate for the whole question from that probability.
+                 For example, if the probability the question will resolve YES in a single day is p (as a decimal), then the probability it will resolve YES over the course of a question lasting 100 days is 1-(1-p)^100.
+                 You will need to adjust this formula depending on the shortened time interval you have selected, and the length of the question until resolution.
+                 If you think the probability of a YES resolution is different on different days, factor this into your prediction and don’t blindly use the above formula.
+                 If you follow this method, ensure you are reasoning mathematically and multiplying probabilities together.
+
+            If you deem the data analysis to be irrelevant to your prediction, you are allowed to disregard it, or simply use it as a low-weight prior to your prediction.
+
+            Now, you must come up with a better prediction. To do this, for each scenario you listed in (1c), give a likelihood estimate, in percent, of that scenario occurring.
+            If applicable, use the results from your data analysis, prioritizing the numbers you computed from larger samples of data.
+            Make sure you construct scenarios that are mutually exclusive so that the sum of the likelihoods is equal to 1. Do not force yourself to predict percentages that are a multiple of 5 or 10. 
+
+            Then, figure out the total probability of the question resolving YES.
+            Make sure you write your rationale for your entire prediction.
+            
+            Then, randomly choose either the word “high” or “low.” Only follow the below instructions depending on the word you selected:
+
+            If you chose the word “high”:
+            I am telling you that you overlooked something and the prediction you told me is too high.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+            Write out your rationale and make a new prediction.
+            Then, I am telling you that you overlooked something again and the new prediction you told me is now too low.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+
+            If you chose the word “low”:
+            I am telling you that you overlooked something and the prediction you told me is too low.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+            Write out your rationale and make a new prediction.
+            Then, I am telling you that you overlooked something again and the new prediction you told me is now too high.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+
+            Make one final adjustment to your prediction.
+            This adjustment should account for the fact that you are fallible and may have made some incorrect assumptions, or your research or knowledge about the question was insufficient.
+            This adjustment should also account for the possibility of edge cases and black swan events that have never occurred historically.
+            This is your final prediction.
 
             The last thing you write is your final answer as: "Probability: ZZ%", 0-100
             """
@@ -186,32 +234,82 @@ class TemplateForecaster(ForecastBot):
         prompt = clean_indents(
             f"""
             You are a professional forecaster interviewing for a job.
+            You will be presented with an interview question, and you must make a prediction on the outcome of the question in order to earn points.
+            There are other professional forecasters participating, and they are also earning points.
+            Your goal is to maximize the likelihood of you earning more points than the other professional forecasters after forecasting about 1000 questions like this.
+            Your score is based on a logarithmic scale, so going from 99% to 99.9% only gives you a tiny advantage if you are correct (+0.009), but a huge penalty if you are wrong (-2.3).
+            Therefore, it may make sense to stay away from predicting extremely small percentages (<1%) and extremely large percentages (>99%) as a hedge to ensure that you can never lose an extremely large number of points when you make an error.
 
             Your interview question is:
             {question.question_text}
 
             The options are: {question.options}
 
-
-            Background:
+            Question background:
             {question.background_info}
+
+            This question's outcome will be determined by the specific criteria below. These criteria have not yet been satisfied.
+            When there is confusion as to how a scenario will resolve, interpret the resolution criteria as literally as possible, giving the resolution criteria priority even over the question statement:
 
             {question.resolution_criteria}
 
             {question.fine_print}
-
 
             Your research assistant says:
             {research}
 
             Today is {datetime.now().strftime("%Y-%m-%d")}.
 
-            Before answering you write:
-            (a) The time left until the outcome to the question is known.
-            (b) The status quo outcome if nothing changed.
-            (c) A description of an scenario that results in an unexpected outcome.
+            Before predicting, you must write the following:
+            (1a) The time left until the outcome to the question is known.
+            (1b) The status quo outcome if nothing changed.
+            (1c) The expectations of experts and markets.
+            (1d) A brief description of all possible scenarios that would result in each of the options to this question.
 
-            You write your rationale remembering that (1) good forecasters put extra weight on the status quo outcome since the world changes slowly most of the time, and (2) good forecasters leave some moderate probability on most options to account for unexpected outcomes.
+            Next, you must attempt to make a prediction just from data analysis. To do this, take the following steps as applicable and write your findings:
+            (2a) Search the internet and news for past data points where a scenario, similar to the one asked about in the question, played out.
+                 Try to find as many of these as possible, while ensuring that the scenarios are similar to the one in the question. Look back as many days, months, and years, as necessary, so long as the data remains relevant.
+                 Keep in mind that data from 2020-2022 is often erratic due to the COVID pandemic, and therefore outliers in that time range can be disregarded if you deem it appropriate to do so.
+            (2b) Compute a base rate for the question, if possible. If the question is asking if something will occur, figure out how many times something similar has occurred in the past, and over what time interval.
+                 This should imply a base rate (occurrences/length of time). Only do this if you have found enough data to compute a meaningful base rate.
+            (2c) If you have found numerical historical data, determine if there are any statistically significant patterns in it.
+                 The data may be trending linearly or exponentially, or there may be cyclical repetition in the data on certain days of the week or seasons in the year.
+            (2d) If the question asks if a certain situation will occur before a certain date, estimate the chance the situation will resolve within a smaller time frame, like a day,
+                 and then calculate a probability estimate for the whole question from that probability.
+                 For example, if the probability something will occur in a single day is p (as a decimal), then the probability it will occur over the course of a question lasting 100 days is 1-(1-p)^100.
+                 You will need to adjust this formula depending on the shortened time interval you have selected, and the length of the question until resolution.
+                 If you think the probability of a question outcome occurring is different on different days, factor this into your prediction and don’t blindly use the above formula.
+                 If you follow this method, ensure you are reasoning mathematically and multiplying probabilities together.
+
+            If you deem the data analysis to be irrelevant to your prediction, you are allowed to disregard it, or simply use it as a low-weight prior to your prediction.
+
+            Now, you must come up with a better prediction. To do this, for each scenario you listed in (1c), give a likelihood estimate, in percent, of that scenario occurring.
+            If applicable, use the results from your data analysis, prioritizing the numbers you computed from larger samples of data.
+            Make sure you construct scenarios that are mutually exclusive so that the sum of the likelihoods is equal to 1. Do not force yourself to predict percentages that are a multiple of 5 or 10. 
+
+            Then, figure out the total probability of the question resolving as each of the different question options.
+            Make sure you write your rationale for your entire prediction.
+            
+            Then, randomly choose either the word “high” or “low.” Only follow the below instructions depending on the word you selected:
+
+            If you chose the word “high”:
+            I am telling you that you overlooked something and the prediction you told me is too confident and concentrated.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+            Write out your rationale and make a new prediction.
+            Then, I am telling you that you overlooked something again and the new prediction you told me is now too underconfident and spread out.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+
+            If you chose the word “low”:
+            I am telling you that you overlooked something and the prediction you told me is too underconfident and spread out.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+            Write out your rationale and make a new prediction.
+            Then, I am telling you that you overlooked something again and the new prediction you told me is now too confident and concentrated.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+
+            Make one final adjustment to your prediction.
+            This adjustment should account for the fact that you are fallible and may have made some incorrect assumptions, or your research or knowledge about the question was insufficient.
+            This adjustment should also account for the possibility of edge cases and black swan events that have never occurred historically.
+            This is your final prediction.
 
             The last thing you write is your final probabilities for the N options in this order {question.options} as:
             Option_A: Probability_A
@@ -242,23 +340,27 @@ class TemplateForecaster(ForecastBot):
         prompt = clean_indents(
             f"""
             You are a professional forecaster interviewing for a job.
+            You will be presented with an interview question, and you must make a prediction on the outcome of the question in order to earn points.
+            Your prediction will be a cumulative probability distribution, so you must provide values for the 2nd, 5th, 10th, 20th, 30th, 40th, 50th, 60th, 70th, 80th, 90th, 95th, and 98th percentiles.
+            There are other professional forecasters participating, and they are also earning points.
+            Your goal is to maximize the likelihood of you earning more points than the other professional forecasters after forecasting about 1000 questions like this.
+            Your score is based on a logarithmic scale, so going from 99% to 99.9% only gives you a tiny advantage if you are correct (+0.009), but a huge penalty if you are wrong (-2.3).
+            Therefore, it may make sense to stay away from predicting extremely small percentages (<1%) and extremely large percentages (>99%) as a hedge to ensure that you can never lose an extremely large number of points when you make an error.
 
             Your interview question is:
             {question.question_text}
 
-            Background:
+            Question background:
             {question.background_info}
+
+            This question's outcome will be determined by the specific criteria below. These criteria have not yet been satisfied.
+            When there is confusion as to how a scenario will resolve, interpret the resolution criteria as literally as possible, giving the resolution criteria priority even over the question statement:
 
             {question.resolution_criteria}
 
             {question.fine_print}
 
             Units for answer: {question.unit_of_measure if question.unit_of_measure else "Not stated (please infer this)"}
-
-            Your research assistant says:
-            {research}
-
-            Today is {datetime.now().strftime("%Y-%m-%d")}.
 
             {lower_bound_message}
             {upper_bound_message}
@@ -268,24 +370,77 @@ class TemplateForecaster(ForecastBot):
             - Never use scientific notation.
             - Always start with a smaller number (more negative if negative) and then increase from there
 
-            Before answering you write:
-            (a) The time left until the outcome to the question is known.
-            (b) The outcome if nothing changed.
-            (c) The outcome if the current trend continued.
-            (d) The expectations of experts and markets.
-            (e) A brief description of an unexpected scenario that results in a low outcome.
-            (f) A brief description of an unexpected scenario that results in a high outcome.
+            Your research assistant says:
+            {research}
 
-            You remind yourself that good forecasters are humble and set wide 90/10 confidence intervals to account for unknown unknowns.
+            Today is {datetime.now().strftime("%Y-%m-%d")}.
+
+            Before predicting, you must write the following:
+            (1a) The time left until the outcome to the question is known.
+            (1b) The status quo outcome if nothing changed.
+            (1c) The expectations of experts and markets.
+            (1d) A brief description of all possible scenarios that would result in a No outcome and all possible scenarios that would result in a Yes outcome.
+
+            Next, you must attempt to make a prediction just from data analysis. To do this, take the following steps as applicable and write your findings:
+            (2a) Search the internet and news for past data points where a scenario, similar to the one asked about in the question, played out.
+                 Try to find as many of these as possible, while ensuring that the scenarios are similar to the one in the question. Look back as many days, months, and years, as necessary, so long as the data remains relevant.
+                 Keep in mind that data from 2020-2022 is often erratic due to the COVID pandemic, and therefore outliers in that time range can be disregarded if you deem it appropriate to do so.
+            (2b) Compute a base rate for the question, if possible. If the question is asking if something will occur, figure out how many times something similar has occurred in the past, and over what time interval.
+                 This should imply a base rate (occurrences/length of time). Only do this if you have found enough data to compute a meaningful base rate.
+            (2c) If you have found numerical historical data, determine if there are any statistically significant patterns in it.
+                 The data may be trending linearly or exponentially, or there may be cyclical repetition in the data on certain days of the week or seasons in the year.
+            (2d) If the question asks if a certain situation will resolve before a certain date, estimate the chance the situation will resolve within a smaller time frame, like a day,
+                 and then calculate a probability estimate for the whole question from that probability.
+                 For example, if the probability the question will resolve YES in a single day is p (as a decimal), then the probability it will resolve YES over the course of a question lasting 100 days is 1-(1-p)^100.
+                 You will need to adjust this formula depending on the shortened time interval you have selected, and the length of the question until resolution.
+                 If you think the probability of a YES resolution is different on different days, factor this into your prediction and don’t blindly use the above formula.
+                 If you follow this method, ensure you are reasoning mathematically and multiplying probabilities together.
+
+            If you deem the data analysis to be irrelevant to your prediction, you are allowed to disregard it, or simply use it as a low-weight prior to your prediction.
+
+            Now, you must come up with a better prediction. To do this, for each scenario you listed in (1c), give a likelihood estimate, in percent, of that scenario occurring.
+            If applicable, use the results from your data analysis, prioritizing the numbers you computed from larger samples of data.
+            Make sure you construct scenarios that are mutually exclusive so that the sum of the likelihoods is equal to 1. Do not force yourself to predict percentages that are a multiple of 5 or 10. 
+
+            Then, figure out the total probability of the question resolving YES.
+            Make sure you write your rationale for your entire prediction.
+            
+            Then, randomly choose either the word “high” or “low.” Only follow the below instructions depending on the word you selected:
+
+            If you chose the word “high”:
+            I am telling you that you overlooked something and most of the percentiles in the prediction you told me are too high.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+            Write out your rationale and make a new prediction.
+            Then, I am telling you that you overlooked something again and most of the percentiles in the prediction you told me are now too low.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+
+            If you chose the word “low”:
+            I am telling you that you overlooked something and most of the percentiles in the prediction you told me are too low.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+            Write out your rationale and make a new prediction.
+            Then, I am telling you that you overlooked something again and most of the percentiles in the prediction you told me are now too high.
+            Figure out why, keeping in mind all of the research and data analysis you have already done, and adjust your prediction if you think it is necessary.
+
+            Make one final adjustment to your prediction.
+            This adjustment should account for the fact that you are fallible and may have made some incorrect assumptions, or your research or knowledge about the question was insufficient.
+            This adjustment should also account for the possibility of edge cases and black swan events that have never occurred historically.
+            This is your final prediction.
 
             The last thing you write is your final answer as:
             "
+            Percentile 2: XX
+            Percentile 5: XX
             Percentile 10: XX
             Percentile 20: XX
+            Percentile 30: XX
             Percentile 40: XX
+            Percentile 50: XX
             Percentile 60: XX
+            Percentile 70: XX
             Percentile 80: XX
             Percentile 90: XX
+            Percentile 95: XX
+            Percentile 98: XX
             "
             """
         )
