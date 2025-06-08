@@ -214,7 +214,7 @@ class TemplateForecaster(ForecastBot):
             This adjustment should also account for the possibility of edge cases and black swan events that have never occurred historically.
             This is your final prediction.
 
-            The last thing you write is your final answer as: "Probability: ZZ%", 0-100
+            The last thing you write is your final answer as: "Probability: ZZ%", where ZZ is an integer 1-99, inclusive.
             """
         )
         reasoning = await self.get_llm("default", "llm").invoke(prompt)
